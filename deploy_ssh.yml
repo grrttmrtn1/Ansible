@@ -1,0 +1,10 @@
+- hosts: all
+  become: yes  # Optional, if root/sudo access is required
+  remote_user: 
+
+  tasks:
+    - name: Copy SSH key
+      authorized_key:
+        user: ansible  
+        key: "{{ lookup('file', '/home/ansible/.ssh/id_rsa.pub') }}"
+        state: present
