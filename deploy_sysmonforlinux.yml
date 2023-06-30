@@ -1,0 +1,30 @@
+- hosts: all
+  become: yes
+  tasks:
+    - name: Run the wget command
+      shell: wget -q https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/packages-microsoft-prod.deb -O /home/ansible/packages-microsoft-prod.deb
+      when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+    - name: Install deb
+      apt:
+        deb: /home/ansible/packages-microsoft-prod.deb
+      when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+    - name: update all packages
+      apt:
+        upgrade: yes
+        update_cache: yes
+      when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+    - name: Install the sysmon packages package
+      apt:
+        name:
+          - sysinternalsebpf
+          - sysmonforlinux
+        state: present
+      when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+    - name: Render the XML template
+      template:
+        src: /etc/ansible/templates/sysmonconfig.xml
+        dest: /home/ansible/sysmonconfig.xml
+      when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+    - name: Run the sysmon configuration
+      shell: sysmon -accepteula -i /home/ansible/sysmonconfig.xml
+      when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
