@@ -1,0 +1,61 @@
+- name: Deploy and configure SNMPv2
+  hosts: all
+  become: yes
+  vars:
+    snmp_community: 'add community name'
+
+  tasks:
+    - name: Install SNMP packages (Debian-based)
+      apt:
+        name:
+          - snmp
+          - snmpd
+          - libsnmp-dev
+        state: present
+      when: ansible_os_family == "Debian" or ansible_os_family == "Ubuntu"
+
+    - name: Install SNMP packages (RedHat-based)
+      yum:
+        name:
+          - net-snmp
+          - net-snmp-utils
+        state: present
+      when: ansible_os_family == "RedHat"
+
+    - name: Ensure snmpd service is enabled and started
+      service:
+        name: snmpd
+        state: started
+        enabled: yes
+
+    - name: Configure SNMPv2
+      copy:
+        dest: /etc/snmp/snmpd.conf
+        content: |
+          # SNMPv2 configuration
+          rocommunity {{ snmp_community }}
+
+          # Trap settings
+          trap2sink localhost {{ snmp_community }}
+
+          # Logging
+          syslog          yes
+          logtimestamp    yes
+
+          # Other settings
+          com2sec readonly default {{ snmp_community }}
+          group MyROGroup v2c readonly
+          view all included .1 80
+
+          access MyROGroup "" any noauth exact all none none
+
+    - name: Restart snmpd service to apply changes
+      service:
+        name: snmpd
+        state: restarted
+
+    - name: Verify SNMPv2 configuration
+      command: snmpwalk -v 2c -c {{ snmp_community }} localhost
+      register: snmpwalk_output
+      failed_when: "'Timeout: No Response' in snmpwalk_output.stderr"
+      changed_when: False
