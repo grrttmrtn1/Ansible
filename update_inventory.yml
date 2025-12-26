@@ -1,0 +1,34 @@
+---
+- name: Scan network and update inventory
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    # Define your target subnet and the destination inventory file
+    target_network: ""
+    inventory_file: "./hosts.ini"
+
+  tasks:
+    - name: Scan the network for active hosts
+      ansible.builtin.command: "nmap -sn {{ target_network }} -oG -"
+      register: nmap_output
+      changed_when: false
+
+    - name: Extract IP addresses from nmap output
+      ansible.builtin.set_fact:
+        found_hosts: "{{ nmap_output.stdout | regex_findall('Host: (\\d+\\.\\d+\\.\\d+\\.\\d+)') }}"
+
+    - name: Ensure the inventory file has a [scanned_hosts] header
+      ansible.builtin.lineinfile:
+        path: "{{ inventory_file }}"
+        line: "[scanned_hosts]"
+        create: yes
+        state: present
+
+    - name: Append found hosts to the inventory file
+      ansible.builtin.lineinfile:
+        path: "{{ inventory_file }}"
+        insertafter: "^\\[scanned_hosts\\]"
+        line: "{{ item }}"
+        state: present
+      loop: "{{ found_hosts }}"
